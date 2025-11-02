@@ -5,7 +5,7 @@ const bodyParser = require('body-parser');
 const session = require('express-session');
 require('dotenv').config();
 
-const { initDatabase, getRecordByDate, upsertRecord, getMonthlyStats, getAllRecords, deleteRecordByDate } = require('./models/database');
+const { initDatabase, getRecordByDate, upsertRecord, getMonthlyStats, getAllRecords, deleteRecordByDate, getRecordsByCreatedAtRange } = require('./models/database');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -158,6 +158,40 @@ app.get('/api/stats/:year/:month', requireAuth, async (req, res) => {
     res.status(500).json({
       success: false,
       message: '获取月度统计失败',
+      error: error.message
+    });
+  }
+});
+
+// 根据 created_at 时间范围获取记录（用于15天统计）
+// 接收北京时间的开始和结束时间戳，后端转换为 UTC 时间查询
+app.get('/api/records-by-time', requireAuth, async (req, res) => {
+  try {
+    const { startTime, endTime } = req.query;
+    
+    if (!startTime || !endTime) {
+      return res.status(400).json({
+        success: false,
+        message: '缺少开始时间或结束时间参数'
+      });
+    }
+    
+    // 前端传来的是北京时间的时间戳（毫秒），数据库中是 UTC 时间
+    // 北京时间 = UTC + 8小时，所以 UTC = 北京时间 - 8小时
+    const startTimeUTC = new Date(parseInt(startTime) - 8 * 60 * 60 * 1000).toISOString();
+    const endTimeUTC = new Date(parseInt(endTime) - 8 * 60 * 60 * 1000).toISOString();
+    
+    const records = await getRecordsByCreatedAtRange(startTimeUTC, endTimeUTC);
+    
+    res.json({
+      success: true,
+      data: records
+    });
+  } catch (error) {
+    console.error('根据时间范围获取记录失败:', error);
+    res.status(500).json({
+      success: false,
+      message: '获取记录失败',
       error: error.message
     });
   }

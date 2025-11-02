@@ -27,7 +27,7 @@ class AirdropTracker {
         try {
             this.showLoading(true);
             await this.loadAllYearData(); // 一次性加载当前年份所有月份数据
-            this.updateMonthlyStats();
+            await this.updateMonthlyStats();
             await this.renderCalendarSlider();
             this.scrollToToday();
         } catch (error) {
@@ -169,7 +169,7 @@ class AirdropTracker {
     }
     
     // 更新当前可见的月份并更新顶部显示
-    updateCurrentVisibleMonth() {
+    async updateCurrentVisibleMonth() {
         const monthElements = document.querySelectorAll('.calendar-grid');
         const containerTop = 0;
         const containerMiddle = this.scrollContainer.clientHeight / 2;
@@ -196,7 +196,7 @@ class AirdropTracker {
                     this.loadMonthData(year, month);
                     
                     // 更新月度统计（根据当前可见月份）
-                    this.updateMonthlyStats(year, month);
+                    await this.updateMonthlyStats(year, month);
                 }
                 break;
             }
@@ -264,7 +264,7 @@ class AirdropTracker {
             }, 100);
             
             // 更新统计
-            this.updateMonthlyStats(this.currentYear, 0);
+            await this.updateMonthlyStats(this.currentYear, 0);
             
             console.log('年份切换完成');
         } catch (error) {
@@ -372,7 +372,7 @@ class AirdropTracker {
                 
                 // 如果是当前显示的月份，更新统计
                 if (year === this.currentYear && month === this.currentMonth) {
-                    this.updateMonthlyStats();
+                    await this.updateMonthlyStats();
                 }
                 
                 // 刷新该月份的显示
@@ -437,41 +437,95 @@ class AirdropTracker {
         }
     }
 
+    // 获取15天内的净积分（基于 created_at 字段，精确到分钟）
+    async getFifteenDayNetPoints() {
+        try {
+            // 获取当前北京时间
+            const now = new Date();
+            const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
+            const beijingTime = new Date(utc + (8 * 3600000));
+            
+            // 计算结束时间：今天早上8点（北京时间）
+            const endTime = new Date(beijingTime);
+            endTime.setHours(8, 0, 0, 0);
+            
+            // 计算开始时间：15天前的早上8点（北京时间）
+            const startTime = new Date(endTime);
+            startTime.setDate(startTime.getDate() - 15);
+            
+            // 转换为时间戳（毫秒）
+            const startTimeMs = startTime.getTime();
+            const endTimeMs = endTime.getTime();
+            
+            // 调用新的 API
+            const response = await fetch(`/api/records-by-time?startTime=${startTimeMs}&endTime=${endTimeMs}`);
+            const result = await response.json();
+            
+            if (result.success) {
+                // 计算总净积分
+                let totalNet = 0;
+                result.data.forEach(record => {
+                    totalNet += parseInt(record.net_points || 0);
+                });
+                return totalNet;
+            }
+            
+            return 0;
+        } catch (error) {
+            console.error('获取15天净积分失败:', error);
+            return 0;
+        }
+    }
+    
     async loadFifteenDayData() {
         try {
-            // 获取15天前的日期
-            const fifteenDaysAgo = new Date();
-            fifteenDaysAgo.setDate(fifteenDaysAgo.getDate() - 15);
-            const fifteenDaysAgoStr = this.formatDate(fifteenDaysAgo);
+            // 获取当前北京时间
+            const now = new Date();
+            const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
+            const beijingTime = new Date(utc + (8 * 3600000));
             
-            // 获取今天
-            const today = new Date();
-            const todayStr = this.formatDate(today);
+            // 如果当前北京时间小于8点，说明今天的统计周期还没开始，结束日期是昨天
+            let endDate;
+            if (beijingTime.getHours() < 8) {
+                // 统计到昨天（今天8点前，所以今天还没开始计入）
+                endDate = new Date(beijingTime);
+                endDate.setDate(endDate.getDate() - 1);
+            } else {
+                // 统计到今天（今天8点后，今天已经开始计入）
+                endDate = new Date(beijingTime);
+            }
             
-            // 如果15天前不在当前月份，需要额外获取数据
-            const fifteenDaysAgoMonth = fifteenDaysAgo.getMonth();
-            const fifteenDaysAgoYear = fifteenDaysAgo.getFullYear();
-            const fifteenDaysAgoKey = `${fifteenDaysAgoYear}-${fifteenDaysAgoMonth}`;
+            // 获取开始日期：从结束日期往前推14天（包含结束日期共15天）
+            const startDate = new Date(endDate);
+            startDate.setDate(startDate.getDate() - 14);
+            const startDateStr = this.formatDate(startDate);
             
-            if (fifteenDaysAgoMonth !== this.currentMonth || fifteenDaysAgoYear !== this.currentYear) {
-                const response = await fetch(`/api/stats/${fifteenDaysAgoYear}/${fifteenDaysAgoMonth + 1}`);
+            const endDateStr = this.formatDate(endDate);
+            
+            // 如果开始日期不在当前月份，需要额外获取数据
+            const startMonth = startDate.getMonth();
+            const startYear = startDate.getFullYear();
+            const startMonthKey = `${startYear}-${startMonth}`;
+            
+            if (startMonth !== this.currentMonth || startYear !== this.currentYear) {
+                const response = await fetch(`/api/stats/${startYear}/${startMonth + 1}`);
                 const result = await response.json();
                 
                 if (result.success) {
                     // 初始化该月份的数据对象
-                    if (!this.monthlyData[fifteenDaysAgoKey]) {
-                        this.monthlyData[fifteenDaysAgoKey] = {};
+                    if (!this.monthlyData[startMonthKey]) {
+                        this.monthlyData[startMonthKey] = {};
                     }
                     
                     result.data.forEach(record => {
-                        if (record.date >= fifteenDaysAgoStr && record.date <= todayStr) {
+                        if (record.date >= startDateStr && record.date <= endDateStr) {
                             const date = new Date(record.date).getDate();
-                            this.monthlyData[fifteenDaysAgoKey][date] = record;
+                            this.monthlyData[startMonthKey][date] = record;
                         }
                     });
                     
                     // 更新该月份的显示
-                    this.updateMonthDisplay(fifteenDaysAgoYear, fifteenDaysAgoMonth);
+                    this.updateMonthDisplay(startYear, startMonth);
                 }
             }
         } catch (error) {
@@ -480,7 +534,7 @@ class AirdropTracker {
     }
     
     // 更新月度统计（根据指定月份或当前可见月份）
-    updateMonthlyStats(year = null, month = null) {
+    async updateMonthlyStats(year = null, month = null) {
         // 如果没有指定年月，使用当前可见月份或默认当前月份
         const targetYear = year !== null ? year : (this.currentVisibleMonth ? this.currentVisibleMonth.year : this.currentYear);
         const targetMonth = month !== null ? month : (this.currentVisibleMonth ? this.currentVisibleMonth.month : this.currentMonth);
@@ -488,12 +542,6 @@ class AirdropTracker {
         let totalIncome = 0;
         let totalLoss = 0;
         let totalNet = 0;
-        let fifteenDayNet = 0;
-
-        // 获取15天前的日期
-        const fifteenDaysAgo = new Date();
-        fifteenDaysAgo.setDate(fifteenDaysAgo.getDate() - 15);
-        const fifteenDaysAgoStr = this.formatDate(fifteenDaysAgo);
         
         // 统计指定月份的数据
         const targetMonthKey = `${targetYear}-${targetMonth}`;
@@ -505,15 +553,8 @@ class AirdropTracker {
             totalNet += parseInt(record.net_points || 0);
         });
         
-        // 计算15天内的净积分（跨月份统计）
-        const allData = [];
-        Object.keys(this.monthlyData).forEach(monthKey => {
-            Object.values(this.monthlyData[monthKey]).forEach(record => {
-                if (record.date >= fifteenDaysAgoStr) {
-                    fifteenDayNet += parseInt(record.net_points || 0);
-                }
-            });
-        });
+        // 计算15天内的净积分（使用新的 API，基于 created_at 时间）
+        const fifteenDayNet = await this.getFifteenDayNetPoints();
 
         // 更新UI显示
         if (document.getElementById('monthlyIncome')) {
@@ -904,7 +945,7 @@ class AirdropTracker {
                 if (this.currentVisibleMonth && 
                     this.currentVisibleMonth.year === year && 
                     this.currentVisibleMonth.month === month) {
-                    this.updateMonthlyStats(year, month);
+                    await this.updateMonthlyStats(year, month);
                 }
             } else {
                 this.showToast(result.message || '删除失败', 'error');

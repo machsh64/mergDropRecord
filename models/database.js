@@ -158,6 +158,32 @@ async function deleteRecordByDate(date) {
   }
 }
 
+// 根据 created_at 时间范围获取记录（数据库中的时间是 UTC，需要传入 UTC 时间）
+async function getRecordsByCreatedAtRange(startTime, endTime) {
+  try {
+    const result = await pool.query(`
+      SELECT 
+        date,
+        volume,
+        points_balance,
+        points_trading,
+        points_consumed,
+        loss,
+        income,
+        (points_balance + points_trading - points_consumed) as net_points,
+        created_at
+      FROM transactions 
+      WHERE created_at >= $1 AND created_at < $2
+      ORDER BY date
+    `, [startTime, endTime]);
+
+    return result.rows;
+  } catch (error) {
+    console.error('根据创建时间获取记录失败:', error);
+    throw error;
+  }
+}
+
 module.exports = {
   pool,
   initDatabase,
@@ -165,5 +191,6 @@ module.exports = {
   upsertRecord,
   getMonthlyStats,
   getAllRecords,
-  deleteRecordByDate
+  deleteRecordByDate,
+  getRecordsByCreatedAtRange
 };
