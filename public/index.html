@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no">
+    <title>Airdrop 交易记录</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=SF+Pro+Display:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="app">
+        <!-- 主内容区域 -->
+        <main class="main-content">
+            <!-- 日历导航 -->
+            <div class="calendar-nav">
+                <button class="nav-btn" id="prevMonth">
+                    <span class="nav-icon">‹</span>
+                </button>
+                <h2 class="month-year" id="currentMonthYear">2024年5月</h2>
+                <button class="nav-btn" id="nextMonth">
+                    <span class="nav-icon">›</span>
+                </button>
+            </div>
+
+            <!-- 统计切换按钮 -->
+            <div class="stats-toggle-container">
+                <button class="stats-toggle-btn" id="statsToggleBtn">
+                    <span class="toggle-icon" id="toggleIcon">▼</span>
+                    <span class="toggle-text">月度统计</span>
+                </button>
+            </div>
+
+            <!-- 月度统计（默认隐藏） -->
+            <div class="monthly-stats collapsed" id="monthlyStats">
+                <div class="stats-card">
+                    <div class="stats-label">本月总收入</div>
+                    <div class="stats-value income" id="monthlyIncome">0.00 USDT</div>
+                </div>
+                <div class="stats-card">
+                    <div class="stats-label">本月总损耗</div>
+                    <div class="stats-value loss" id="monthlyLoss">0.00 USDT</div>
+                </div>
+                <div class="stats-card">
+                    <div class="stats-label">本月净积分</div>
+                    <div class="stats-value net" id="monthlyNet">0</div>
+                </div>
+                <div class="stats-card">
+                    <div class="stats-label">15天内净积分</div>
+                    <div class="stats-value net" id="fifteenDayNet">0</div>
+                </div>
+            </div>
+
+            <!-- 日历滑动容器 -->
+            <div class="calendar-scroll-container" id="calendarScrollContainer">
+                <div class="calendar-slider" id="calendarSlider">
+                    <!-- 日历网格将动态生成 -->
+                </div>
+            </div>
+
+            <!-- 回到今天按钮 -->
+            <button class="today-button" id="todayButton">
+                今天
+            </button>
+
+            <!-- 登出按钮 -->
+            <button class="logout-button" id="logoutButton">
+                登出
+            </button>
+        </main>
+
+        <!-- 记录编辑模态框 -->
+        <div class="modal" id="recordModal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3 class="modal-title" id="modalTitle">添加交易记录</h3>
+                    <button class="modal-close" id="modalClose">×</button>
+                </div>
+                <div class="modal-body">
+                    <form id="recordForm">
+                        <div class="form-group" style="display: none;">
+                            <label for="recordDate">日期</label>
+                            <input type="date" id="recordDate" name="date" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="volume">交易量</label>
+                            <input type="number" id="volume" name="volume" step="0.01" placeholder="0.00">
+                        </div>
+                        
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="pointsBalance">余额积分</label>
+                                <input type="number" id="pointsBalance" name="points_balance" value="2" min="0">
+                            </div>
+                            <div class="form-group">
+                                <label for="pointsTrading">交易积分</label>
+                                <input type="number" id="pointsTrading" name="points_trading" value="0" min="0">
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="pointsConsumed">消耗积分</label>
+                            <input type="number" id="pointsConsumed" name="points_consumed" value="0" min="0">
+                        </div>
+                        
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="loss">交易损耗</label>
+                                <input type="number" id="loss" name="loss" step="0.01" placeholder="0.00">
+                            </div>
+                            <div class="form-group">
+                                <label for="income">空投收入</label>
+                                <input type="number" id="income" name="income" step="0.01" placeholder="0.00">
+                            </div>
+                        </div>
+                        
+                        <div class="form-actions">
+                            <button type="button" class="btn btn-secondary" id="cancelBtn">取消</button>
+                            <button type="submit" class="btn btn-primary">保存</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- 加载提示 -->
+        <div class="loading" id="loading">
+            <div class="loading-spinner"></div>
+            <div class="loading-text">加载中...</div>
+        </div>
+
+        <!-- 消息提示 -->
+        <div class="toast" id="toast">
+            <div class="toast-content">
+                <span class="toast-message" id="toastMessage"></span>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/app.js"></script>
+</body>
+</html>

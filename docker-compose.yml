@@ -1,0 +1,26 @@
+version: '3.8'
+
+services:
+  # Node.js 应用
+  app:
+    build: .
+    container_name: airdrop-tracker-app
+    environment:
+      - NODE_ENV=production
+      - DB_HOST=${DB_HOST}
+      - DB_PORT=${DB_PORT:-5432}
+      - DB_NAME=${DB_NAME:-airdrop_tracker}
+      - DB_USER=${DB_USER:-letta}
+      - DB_PASSWORD=${DB_PASSWORD:-letta}
+      - PORT=3000
+      - AUTH_USERNAME=${AUTH_USERNAME:-admin}
+      - AUTH_PASSWORD=${AUTH_PASSWORD:-admin123}
+    ports:
+      - "${APP_PORT:-8080}:3000"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000/api/health', (res) => { process.exit(res.statusCode === 200 ? 0 : 1) })"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
